@@ -151,6 +151,13 @@
   .date-line{font-size:15.5px; letter-spacing:3.5px; text-transform:uppercase; font-weight:500; color:var(--ink);}
   .year{font-family:'Cormorant Garamond', serif; font-size:32px; font-weight:600; color:var(--gold); margin-top:4px; letter-spacing:7px;}
 
+  .invite-note{
+    margin-top:22px; max-width:280px;
+    font-family:'Cormorant Garamond', serif; font-style:italic;
+    font-size:16px; line-height:1.85; letter-spacing:.3px;
+    color:var(--ink); opacity:.82; text-align:center;
+  }
+
   .reminder-btn{
     margin-top:26px;
     background:var(--gold); color:var(--ivory);
@@ -194,19 +201,15 @@
   .timer-num{font-family:'Cormorant Garamond',serif; font-size:40px; color:var(--ink); font-weight:600;}
   .timer-label{font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--ink); opacity:.6; margin-top:2px;}
 
-  .timer-sec-wrap{
-    position:relative; height:50px; width:52px; overflow:hidden;
-    display:inline-block; vertical-align:top;
-  }
   .timer-sec-digit{
-    position:absolute; left:0; right:0; top:0;
-    line-height:50px;
+    display:inline-block;
     will-change:transform, opacity, filter;
-    transition:transform .4s cubic-bezier(.3,0,.2,1), opacity .4s ease, filter .4s ease;
   }
-  .timer-sec-digit.sec-enter{transform:translateY(55%); opacity:0; filter:blur(5px);}
-  .timer-sec-digit.sec-enter-active{transform:translateY(0); opacity:1; filter:blur(0);}
-  .timer-sec-digit.sec-exit-active{transform:translateY(-55%); opacity:0; filter:blur(5px);}
+  @keyframes secTick{
+    0%{transform:translateY(12px); opacity:0; filter:blur(5px);}
+    100%{transform:translateY(0); opacity:1; filter:blur(0);}
+  }
+  .timer-sec-digit.tick{ animation: secTick .4s cubic-bezier(.3,0,.2,1); }
 
   .program{
     width:100%; max-width:420px; padding:18px 14px 8px;
@@ -248,13 +251,13 @@
     position:absolute; width:30%; max-width:130px; pointer-events:none; opacity:.95; z-index:0;
     animation:floralFloatA 7s ease-in-out infinite;
   }
-  .corner-floral.top-right{top:-14%; right:-9%;}
+  .corner-floral.top-right{top:-14%; right:-1%;}
   @keyframes floralFloatA{
     0%,100%{transform:translateY(0) rotate(0deg);}
     50%{transform:translateY(-9px) rotate(1.6deg);}
   }
 
-  .map-wrap{width:100%; max-width:400px; height:150px; filter:sepia(8%) saturate(85%);}
+  .map-wrap{width:100%; max-width:300px; height:260px; filter:sepia(8%) saturate(85%);}
   .map-wrap iframe{width:100%; height:100%; border:0;}
 
   .direction-btn{
@@ -268,7 +271,7 @@
   /* ---------- RSVP ---------- */
   #rsvp{background:var(--ivory-deep); position:relative;}
   .field-message{position:relative;}
-  .corner-floral.msg-floral{right:-2%; bottom:-16px; width:24%; max-width:108px; z-index:0; animation-name:floralFloatB; animation-duration:8s;}
+  .corner-floral.msg-floral{right:-7%; bottom:-61px; width:24%; max-width:108px; z-index:0; animation-name:floralFloatB; animation-duration:8s;}
   @keyframes floralFloatB{
     0%,100%{transform:translateY(0) rotate(0deg);}
     50%{transform:translateY(-10px) rotate(-1.8deg);}
@@ -364,11 +367,12 @@
       <div class="year">2026</div>
     </div>
 
+    <div class="invite-note reveal reveal-4">Bu mutlu günümüzde,<br>güler yüzünüzle şahidimiz,<br>dualarınızla yanımızda olmanız dileğiyle...</div>
+
     <button class="reminder-btn reveal reveal-4" id="reminderBtn">Hatırlatıcı Ekle</button>
     <div class="reminder-options" id="reminderOptions">
       <button id="addCalendarBtn">Takvime Ekle</button>
-      <button id="deviceNotifyBtn">Cihaz Bildirimi Aç</button>
-      <div class="reminder-note">Takvime eklemek düğün gününde hatırlatmanın en güvenilir yoludur. Cihaz bildirimi, bu sayfa açık kaldığı sürece çalışır.</div>
+      <div class="reminder-note">Düğün, 15 Kasım 2026 tarihinde saat 13:00–17:00 arasında.</div>
     </div>
   </div>
 
@@ -385,7 +389,7 @@
     <div class="timer-unit"><div class="timer-num" id="t-days">00</div><div class="timer-label">Gün</div></div>
     <div class="timer-unit"><div class="timer-num" id="t-hours">00</div><div class="timer-label">Saat</div></div>
     <div class="timer-unit"><div class="timer-num" id="t-min">00</div><div class="timer-label">Dakika</div></div>
-    <div class="timer-unit"><div class="timer-sec-wrap" id="t-sec-wrap"><div class="timer-num timer-sec-digit" id="t-sec">00</div></div><div class="timer-label">Saniye</div></div>
+    <div class="timer-unit"><div class="timer-num timer-sec-digit" id="t-sec">00</div><div class="timer-label">Saniye</div></div>
   </div>
 
   <h2 class="section-title reveal reveal-3" style="margin-top:18px; margin-bottom:8px;">Düğün Programı</h2>
@@ -507,11 +511,25 @@
   }
 
   tryStartMusic();
-  ['pointerdown','touchstart','keydown'].forEach(evt => {
-    document.addEventListener(evt, function onFirstInteract(){
-      tryStartMusic();
-    }, { once:true, passive:true });
-  });
+
+  // Tarayıcı politikası zamanla (ör. Chrome'un "medya etkileşim puanı") izin
+  // verebileceğinden ilk saniyelerde birkaç kez daha deniyoruz.
+  let retryCount = 0;
+  const retryTimer = setInterval(() => {
+    retryCount++;
+    if (musicStarted || userPaused || retryCount > 6){ clearInterval(retryTimer); return; }
+    tryStartMusic();
+  }, 700);
+
+  // Masaüstünde ilk etkileşim çoğunlukla fare tekerleği/klavye olabildiği için
+  // dinlenen olay listesi genişletildi; capture:true ile sayfadaki herhangi bir
+  // öğe olayı durdursa bile en erken aşamada yakalanır.
+  const firstInteractEvents = ['pointerdown','touchstart','mousedown','click','keydown','wheel'];
+  function onFirstInteract(){
+    tryStartMusic();
+    firstInteractEvents.forEach(evt => document.removeEventListener(evt, onFirstInteract, true));
+  }
+  firstInteractEvents.forEach(evt => document.addEventListener(evt, onFirstInteract, { capture:true, passive:true }));
 
   musicToggle.addEventListener('click', () => {
     if (bgMusic.paused){
@@ -590,7 +608,7 @@
   });
 
 
-  // --- Hatırlatıcı: takvime ekle + bildirim ---
+  // --- Hatırlatıcı: sadece takvime ekle ---
   const reminderBtn = document.getElementById('reminderBtn');
   const reminderOptions = document.getElementById('reminderOptions');
   reminderBtn.addEventListener('click', () => {
@@ -600,11 +618,11 @@
   document.getElementById('addCalendarBtn').addEventListener('click', () => {
     const icsContent = [
       'BEGIN:VCALENDAR','VERSION:2.0','BEGIN:VEVENT',
-      'DTSTART:20261115T140000',
-      'DTEND:20261115T220000',
+      'DTSTART:20261115T130000',
+      'DTEND:20261115T170000',
       'SUMMARY:Özlem & Muhittin - Düğün',
-      'LOCATION:Beyaz Bahçe Davet Evi, Reşatbey, Adana',
-      'DESCRIPTION:Özlem ve Muhittin\'in düğününe davetlisiniz.',
+      'LOCATION:Beylikduzu Ogretmenevi Davet Salonu, Beylikduzu / Istanbul',
+      "DESCRIPTION:Ozlem ve Muhittin'in dugunune davetlisiniz.",
       'END:VEVENT','END:VCALENDAR'
     ].join('\r\n');
     const blob = new Blob([icsContent], {type:'text/calendar'});
@@ -614,35 +632,37 @@
     link.click();
   });
 
-  document.getElementById('deviceNotifyBtn').addEventListener('click', () => {
-    if ('Notification' in window) {
-      Notification.requestPermission().then(perm => {
-        if (perm === 'granted') {
-          new Notification('Hatırlatıcı ayarlandı', {body:'Özlem & Muhittin - 15 Kasım 2026'});
-        }
-      });
+  // --- Yol Tarifi Al: cihazın işletim sistemine göre uygun harita uygulamasına yönlendir ---
+  const directionsBtn = document.getElementById('directionsBtn');
+  const destLat = 41.009187, destLng = 28.636958;
+  directionsBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const ua = navigator.userAgent || navigator.vendor || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    const isAndroid = /Android/i.test(ua);
+    let url;
+    if (isIOS){
+      url = `https://maps.apple.com/?daddr=${destLat},${destLng}&dirflg=d`;
+    } else {
+      // Android ve diğer tüm platformlar (masaüstü dahil) için Google Haritalar
+      url = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
     }
+    window.open(url, '_blank');
   });
 
   // --- Geri sayım ---
-  const weddingDate = new Date('2026-11-15T14:00:00');
+  const weddingDate = new Date('2026-11-15T13:00:00');
   let lastSec = null;
 
   function setSeconds(val){
-    const wrap = document.getElementById('t-sec-wrap');
-    const old = wrap.querySelector('.timer-sec-digit');
-    const next = document.createElement('div');
-    next.className = 'timer-num timer-sec-digit sec-enter';
-    next.textContent = val;
-    wrap.appendChild(next);
-    // reflow zorlaması, ardından geçişi başlat
-    void next.offsetWidth;
-    requestAnimationFrame(() => {
-      next.classList.remove('sec-enter');
-      next.classList.add('sec-enter-active');
-      if (old){ old.classList.add('sec-exit-active'); }
-    });
-    setTimeout(() => { if (old) old.remove(); }, 420);
+    const el = document.getElementById('t-sec');
+    el.textContent = val;
+    // Aynı animasyonu her saniye yeniden tetiklemek için sınıfı kaldırıp
+    // reflow sonrası tekrar ekliyoruz. Tek eleman kullanıldığından
+    // arka planda sekme donsa/tab pasif kalsa bile eski öğe asla ekranda takılı kalmaz.
+    el.classList.remove('tick');
+    void el.offsetWidth;
+    el.classList.add('tick');
   }
 
   function updateTimer(){
